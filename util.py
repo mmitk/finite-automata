@@ -1,0 +1,3 @@
+class stateViolation(Exception):
+    pass
+
