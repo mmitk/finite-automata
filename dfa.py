@@ -28,13 +28,6 @@ class DFA:
         self.curr_state = init_state
     
     def validate_func(self, transition_func):
-        #TODO handle dataframe instance of transition function
-        '''
-        if isinstance(transition_func, pd.DatFrame):
-            self.transition_func = transition_func
-        elif isinstance(transition_func, str):
-            self.transition_func = pd.read_json(transition_func)
-        '''
 
         if isinstance(transition_func, dict):
             # search through keys of transition_func dictionary
@@ -50,6 +43,9 @@ class DFA:
                     return False
                 if transition_func[key] not in self.Q:
                     raise stateViolation('state '+transition_func[key]+' not in set Q')
+                    return False
+                if isinstance(transition_func[key],list):
+                    raise SetFormatError('Target value of transition function DFA has to be a single item, not list')
                     return False
             return True
 
