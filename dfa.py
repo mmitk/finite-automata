@@ -84,4 +84,9 @@ class DFA:
         return False
         
 
-        
+    def to_string(self):
+       return 'Finite Set of States Q: '+ str(self.Q) + '\n'
+       + 'Finite non-empty Set of symbols (alphabet): '+ str(self.sigma) + '\n'
+       + 'Initial State (member of Q): ' + str(self.init_state) + '\n'
+       + 'Final states (subset of Q)' + str(self.final_states) + '\n'
+       + 'Transition Function - delta (in dictionary Format) ' + str(self.transition_func) + '\n'
