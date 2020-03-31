@@ -1,8 +1,8 @@
 #import pandas as pd
-class stateViolation(Exception):
+class StateViolation(Exception):
     pass
 
-class alphabetViolation(ValueError):
+class AlphabetViolation(ValueError):
     pass
 
 class SetFormatError(ValueError):
