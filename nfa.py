@@ -1,5 +1,6 @@
 from util import StateViolation, AlphabetViolation, SetFormatError, powerset, log
 from collections import Iterable
+from functools import reduce
 from dfa import DFA
 
 
@@ -25,6 +26,8 @@ class NFA():
         if isinstance(init_state, Iterable) and not isinstance(init_state,str):
             raise SetFormatError('Initial state must not be an iterable type that is not a string type')
         self.init = init_state
+        # finding e-closure of initial states makes it smoother to consume input
+        # but initial state is seperately saved (above)
         self.init_states = self.e_closure([init_state])
         self.current_states = self.init_states
 
@@ -47,6 +50,15 @@ class NFA():
         self.eps = epsilon
 
     def validate_func(self, transition_func):
+        """
+        validation of the transition function
+        the transition function is a dictionary, whose key is a pair containing the current state and input symbol, 
+        and whose value is the next or resulting state(s) i.e.
+        tf[('current_state','symbol')] == ['target_state']
+        this function validates that all states and symbols included in the transition functions are members of Q and sigma respectively
+        otherwise errors are raised
+        errors are defined in util.py
+        """
         if isinstance(transition_func, dict):
             # search through keys of transition_func dictionary
             for key in transition_func:
@@ -92,13 +104,21 @@ class NFA():
 
 
     def step(self, sym):
+        """
+        single step. consumes one symbol, by performing single step transition (which includes epsilon closure)
+        for every single "choice"/"branch" 
+        the transition function is a dictionary, whose key is a pair containing the current state and input symbol, 
+        and whose value is the next or resulting state(s) i.e.
+        tf[('current_state','symbol')] == ['target_state]
+        """
+
         new_states = []
+        # for each state that is in "current states" i.e. current choices or branches of the NFA,
+        # calculate single step transiion using transition function
         for state in self.current_states:
             try:
                 [new_states.append(substate) for substate in self.e_closure(self.transition_func[(state, sym)])]
             except KeyError as e:
-                #log(e, type = 0)
-                #print(self.e_closure(self.transition_func(state, sym)))
                 if sym in self.sigma:
                     self.curr_state = 'FAILSTATE'
                 else:
@@ -113,84 +133,85 @@ class NFA():
         self.current_states = new_states
         
     def consume_input(self , inp):
+        """
+        This consumes the input  given to the NFA
+        for each symbol in the input, step is called. 
+        After input is consumed, if the NFA is in an accepted state then
+        it returns true (first reset for next input), otherwise return false
+        """
         for sym in inp:
             log('current state: '+str(self.current_states) + 'symbol: '+ sym,type = 0)
             #if sym in self.sigma and not self.accepted:
             if sym in self.sigma:
                 self.step(sym)
-            #elif self.accepted:
-                #log(self.current_states,type = 0)
-                #log('ACCEPTED',type = 0)
-                #self.accepted = False
-                #return True
             else:
                 raise AlphabetViolation('input symbol: '+ sym +' not in alphabet')
         
         if self.accepted:
-            log(self.current_states,type = 0)
-            log('ACCEPTED',type = 0)
-            # reset then return True
+            # reset current states and accepted status then return True
             self.current_states = self.init_states
             self.accepted = False
             return True
         
-         # reset then return False
+         # reset current states and accepted status then return false
         self.current_states = self.init_states
         self.accepted = False
         return False
 
     def to_dfa(self):
         """
-         The set of states Q of a DFA from NFA is the powerset of all states of the NFA
-         start with q0
-
+        The algorithm used here to transform the NFA into a DFA is as follows:
+        (1) Qd = {q0n} add initial state from NFA into set of states Q of new DFA
+        (2) for each state in Qd find the resulting state for each symbol from the alphabet using the transition function
+        (3) add the new resulting state into Qd then repeat the process
+        (4) Once all the states have been checked, the algorithm is finished
+        (5) Each new state that contains a final state is itself a final state of the resulting DFA
         """
-        log(message = '\nTO DFA BEGUN', type = 0,file='nfa_dfa.log')
-        Qnew= list()
-        Qnew.append(str(self.e_closure(self.init_states)))
-        #Qnew.append(str([self.Q[0]]))
-        new_init = [self.e_closure(self.init_states)]
-        log(message = 'new q0: '+ str(new_init), type = 0,file='nfa_dfa.log')
-        new_tf = dict()
-        newfinal_states = list()
-        breakc = 0
-        isfinal = False
-        # create new set of states for dfa Qd and new dfa transition_function iteratively
-        for dstate in Qnew:
-            if breakc == len(Qnew):
-                break
-            for nstate in dstate:
-                for sym in self.sigma:
-                    new_dstate = list()
-                    if breakc == len(self.sigma):
-                        break
-                    if (str(dstate), sym) in new_tf.keys():
-                        breakc += 1
-                        break
-                    #for substate in e_closure(self.transition_func(nstate, sym)):
-                    try:
-                        #TODO
-                        #improve break efficiency
-                        new_state = [substate for substate in self.e_closure(self.transition_func[(nstate, sym)])]
-                        for f in self.final_states:
-                            if f in new_state:
-                                isfinal = True
-                        new_dstate += new_state
-                    except KeyError as k:
-                        # Testing
-                        print(k)
-                    new_tf[(str(dstate), sym)] = str(new_dstate)
-                    log(message = 'new dstate: '+ str(new_dstate), type = 0,file='nfa_dfa.log')
-                    if isfinal:
-                        newfinal_states.append(new_dstate)
-                        log(message = 'final state: '+ str(new_dstate), type = 0,file='nfa_dfa.log')
-                    Qnew.append(new_dstate)
+        # since a list is not hashable (can not be used as key in a dictionary)
+        # I am casting it to a frozenset, which is a hashable datatype
+        q0 = frozenset(self.init_states)
+        Qnew = set([q0]) # Qd is called Qnew
+        unchecked = Qnew.copy() # make a copy of Qd
+        delta_new = dict() # delta is a dictionary
+        final_states = [] 
+        sigma_new = self.sigma
+        
+        while len(unchecked) > 0:
+            curr = unchecked.pop()
+            for sym in sigma_new:
+                try:
+                    # obtain the next states using the transition function
+                    # new state into hashable frozenset, and add to new transition function and Qnew
+                    next_states = reduce(lambda x,y: x|y, [frozenset(self.transition_func[(q,sym)]) for q in curr if (q,sym) in self.transition_func.keys()])
+            
+                    next_states = frozenset(next_states)
+                    delta_new[(curr,sym)] = next_states
+                    if next_states not in Qnew:
+                        Qnew.add(next_states)
+                        unchecked.add(next_states)
+                # catch any possible exceptions
+                except Exception:
+                    continue
+        
+        for curr in Qnew:
+            # check which states in the new DFA contain any final states
+            # from the NFA, and add the ones that do to the set of final_states
+            if len(curr & frozenset(self.final_states)) > 0:
+                final_states.append(curr)
 
+        return DFA(self.sigma, Qnew, q0, delta_new, final_states)
 
-        log(message = '\nCOMPLETED\n\n\n', type = 0,file='nfa_dfa.log')
-        return DFA(self.sigma, Qnew, new_init, new_tf, newfinal_states)
+       
+        
+                    
 
-
-    def to_string(self):
-        return 'Finite Set of States Q: '+ str(self.Q) + '\n'+ 'Finite non-empty Set of symbols (alphabet): '+ str(self.sigma) + '\n'+ 'Initial State (member of Q): ' + str(self.init) + '\n'+ 'Final states (subset of Q)' + str(self.final_states) + '\n'+ 'Transition Function - delta (in dictionary Format) ' + str(self.transition_func) + '\n'
+    def to_screen(self):
+        print('Finite Set of States Q: ', str(self.Q))
+        print('Finite non-empty Set of symbols (alphabet): ',str(self.sigma))
+        print('Initial State (member of Q): ' , str(self.init))
+        print('Final states (subset of Q)' ,str(self.final_states))
+        print('Transition Function - delta (in dictionary Format, each step is a value in dictionary):')
+        for step in self.transition_func:
+            print('{} -> {}'.format(str(step),str(self.transition_func[step])))
+    
         
