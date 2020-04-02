@@ -1,0 +1,31 @@
+name: Michael Mitkov
+
+The output.txt contains all of the output which explains which strings the accept and many example inputs 
+and outputs that were accepted and rejected for every DFA and NFA.
+The output.txt also shows the structure of the DFA's and NFA's in terms of their components
+examples.py is where the examples are located
+
+The following are the locations of the example DFA's and NFA's (example input and output in ouput.txt):
+
+(1) The DFA that takes 'a' and 'b' and accepts input with 'aa' as a substring is located between 
+    lines 11 and lines 37 in examples.py (aa_substring)
+(2) DFA that takes '0' and '1' and accepts input where the number of '0' is a even is located
+    between lines 41 and 75 of examples.py (multof2)
+(3) DFA that takes '0' and '1' and accepts input where the number of '0' is a multiple of 3 is located
+    between lines 80 and 114 of examples.py (multof3)
+(4) The NFA which takes '0' and '1' and accepts input that ends in '01' is located 
+    between lines 117 and 145 of examples.py (it is improperly named nfa_01_is_substring)
+    Also there is the resulting DFA after conversion
+(5) The NFA which takes '0' and '1' and accepts input that has a 1 at the second or third position from the end 
+    is located between lines 167 and 218 of examples.py (it is improperly named nfa_01_is_substring)
+    Also there is the resulting DFA after conversion
+(6) The NFA example which takes 'a' and 'b' and accepts input with 'aa' as a substring is located between 
+    lines 224 and lines 274 in examples.py (nfa_to_dfa_simple_test)
+    Also there is the resulting DFA after conversion
+(7) The NFA which takes 'a' and accepts input where the number of a's is even or divisible by 3 is
+    located between lines 277 and 328 in examples.py
+    Also there is the resulting DFA after conversion
+
+The DFA class is located in dfa.py
+the NFA class is located in nfa.py
+exceptions and some utility functions are located in util.py
